@@ -61,6 +61,7 @@ write_files:
 
   ###########################################################
   # CoreDNS – Zona DNS autoritativa para SNO
+  # Dominio final: sno.okd.local
   ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
@@ -71,15 +72,16 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      ; Registros del SNO
+      ; Nodo SNO (master único)
+      ; sno.okd.local → IP del nodo SNO
+      @       IN A ${sno_ip}
+
+      ; API SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
 
-      ; Dominio base
-      ${cluster_name} IN A ${sno_ip}
-
-      ; apps (sin wildcard, plugin file NO lo soporta)
-      apps IN A ${sno_ip}
+      ; apps (sin wildcard por el plugin file)
+      apps    IN A ${sno_ip}
 
   ###########################################################
   # CoreDNS Corefile
@@ -89,6 +91,7 @@ write_files:
     content: |
       ${cluster_name}.${cluster_domain}.:53 {
         file /etc/coredns/db.okd
+        reload
       }
 
       .:53 {
@@ -120,19 +123,23 @@ write_files:
 ###########################################################
 runcmd:
 
+  # Directorio CoreDNS
   - mkdir -p /etc/coredns
 
+  # Aplicar NetworkManager
   - nmcli connection reload
   - nmcli connection down eth0 || true
   - nmcli connection up eth0
 
+  # Paquetes base
   - dnf install -y chrony firewalld curl tar bind-utils
 
+  # NTP apuntando al gateway
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server ${gateway} iburst/' /etc/chrony.conf
   - systemctl restart chronyd
 
-  # resolv.conf manual
+  # resolv.conf manual usando INFRA como primer DNS
   - systemctl restart NetworkManager
   - rm -f /etc/resolv.conf
   - printf "nameserver ${dns1}\nnameserver ${dns2}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
@@ -152,4 +159,4 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable --now coredns
 
-final_message: "🔥 DNS SNO funcionando correctamente."
+final_message: "🔥 DNS SNO (sno.okd.local) funcionando correctamente."
