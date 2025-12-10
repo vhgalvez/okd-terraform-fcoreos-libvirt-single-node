@@ -49,7 +49,6 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      # Registros necesarios para SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
       ${cluster_name} IN A ${sno_ip}
@@ -69,7 +68,7 @@ write_files:
       }
 
   ###########################################################
-  # systemd unit - se habilitará al final
+  # systemd unit - CoreDNS
   ###########################################################
   - path: /etc/systemd/system/coredns.service
     permissions: "0644"
@@ -91,7 +90,7 @@ write_files:
 runcmd:
 
   ###########################################################
-  # Descargar binario CoreDNS — ANTES del enable
+  # Descargar binario CoreDNS
   ###########################################################
   - mkdir -p /etc/coredns
   - cd /tmp
@@ -101,7 +100,7 @@ runcmd:
   - chmod +x /usr/local/bin/coredns
 
   ###########################################################
-  # NTP local (Rocky 10.66.0.1)
+  # NTP local
   ###########################################################
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server 10.66.0.1 iburst/' /etc/chrony.conf
@@ -109,7 +108,7 @@ runcmd:
   - systemctl restart chronyd
 
   ###########################################################
-  # resolv.conf del nodo infra → él mismo como DNS
+  # resolv.conf del infra → él mismo
   ###########################################################
   - rm -f /etc/resolv.conf
   - printf "nameserver ${ip}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
@@ -117,14 +116,15 @@ runcmd:
   ###########################################################
   # Firewall y servicios
   ###########################################################
-  - systemctl daemon-reload
+  - systemctl enable --now firewalld
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
 
   ###########################################################
-  # AHORA SÍ: habilitar CoreDNS correctamente
+  # Habilitar CoreDNS
   ###########################################################
+  - systemctl daemon-reload
   - systemctl enable --now coredns
 
 final_message: "Infra DNS + NTP listos para SNO."
