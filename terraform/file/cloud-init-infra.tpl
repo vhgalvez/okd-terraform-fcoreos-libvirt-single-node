@@ -8,15 +8,18 @@ disable_root: false
 
 users:
   - default
+
+  # Usuario core
   - name: core
     gecos: "Core User"
     groups: [wheel]
     shell: /bin/bash
-    lock_passwd: false
     sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    lock_passwd: false
     ssh_authorized_keys:
       - ${ssh_keys}
 
+  # Usuario root
   - name: root
     ssh_authorized_keys:
       - ${ssh_keys}
@@ -28,13 +31,31 @@ packages:
   - chrony
   - firewalld
   - bind-utils
-  - tar
   - curl
+  - tar
 
 write_files:
 
   ###########################################################
-  # CoreDNS – Corefile corregido
+  # CoreDNS - Zona DNS para SNO
+  ###########################################################
+  - path: /etc/coredns/db.okd
+    permissions: "0644"
+    content: |
+      $ORIGIN ${cluster_name}.${cluster_domain}.
+      @ IN SOA infra.${cluster_name}.${cluster_domain}. admin.${cluster_name}.${cluster_domain}. (
+          2025010101 7200 3600 1209600 3600 )
+
+      @       IN NS infra.${cluster_name}.${cluster_domain}.
+      infra   IN A ${ip}
+
+      # Registros necesarios para SNO
+      api     IN A ${sno_ip}
+      api-int IN A ${sno_ip}
+      ${cluster_name} IN A ${sno_ip}
+
+  ###########################################################
+  # Corefile (DNS puerto 53 explícito)
   ###########################################################
   - path: /etc/coredns/Corefile
     permissions: "0644"
@@ -48,24 +69,7 @@ write_files:
       }
 
   ###########################################################
-  # Zona DNS del cluster SNO
-  ###########################################################
-  - path: /etc/coredns/db.okd
-    permissions: "0644"
-    content: |
-      $ORIGIN ${cluster_name}.${cluster_domain}.
-      @ IN SOA infra.${cluster_name}.${cluster_domain}. admin.${cluster_name}.${cluster_domain}. (
-          2025010101 7200 3600 1209600 3600 )
-
-      @       IN NS infra.${cluster_name}.${cluster_domain}.
-      infra   IN A ${ip}
-
-      api     IN A ${sno_ip}
-      api-int IN A ${sno_ip}
-      ${cluster_name} IN A ${sno_ip}
-
-  ###########################################################
-  # CoreDNS systemd unit CORREGIDO
+  # systemd unit - se habilitará al final
   ###########################################################
   - path: /etc/systemd/system/coredns.service
     permissions: "0644"
@@ -78,36 +82,49 @@ write_files:
       [Service]
       ExecStart=/usr/local/bin/coredns -conf=/etc/coredns/Corefile -dns.port=53
       Restart=always
+      RestartSec=2
       LimitNOFILE=1048576
 
       [Install]
       WantedBy=multi-user.target
 
 runcmd:
+
+  ###########################################################
+  # Descargar binario CoreDNS — ANTES del enable
+  ###########################################################
+  - mkdir -p /etc/coredns
+  - cd /tmp
+  - curl -LO https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
+  - tar -xzf coredns_1.13.1_linux_amd64.tgz
+  - mv coredns /usr/local/bin/coredns
+  - chmod +x /usr/local/bin/coredns
+
+  ###########################################################
+  # NTP local (Rocky 10.66.0.1)
+  ###########################################################
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server 10.66.0.1 iburst/' /etc/chrony.conf
   - echo "allow 10.66.0.0/24" >> /etc/chrony.conf
   - systemctl restart chronyd
 
-  # Resolver local
+  ###########################################################
+  # resolv.conf del nodo infra → él mismo como DNS
+  ###########################################################
   - rm -f /etc/resolv.conf
   - printf "nameserver ${ip}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
 
-  # Descargar CoreDNS correctamente
-  - mkdir -p /etc/coredns
-  - cd /tmp
-  - curl -LO https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
-  - tar -xzf coredns_1.13.1_linux_amd64.tgz
-  - mv coredns /usr/local/bin/
-  - chmod +x /usr/local/bin/coredns
-
-  # Activar servicios
+  ###########################################################
+  # Firewall y servicios
+  ###########################################################
   - systemctl daemon-reload
-  - systemctl enable --now firewalld coredns
-
-  # Abrir puertos DNS
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
+
+  ###########################################################
+  # AHORA SÍ: habilitar CoreDNS correctamente
+  ###########################################################
+  - systemctl enable --now coredns
 
 final_message: "Infra DNS + NTP listos para SNO."
