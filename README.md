@@ -175,6 +175,15 @@ Password:
 generated/auth/kubeadmin-password
 ```
 
+# En el host Rocky
+sudo nft -f /etc/sysconfig/nftables.conf
+
+# En INFRA
+ping -c 4 8.8.8.8
+dig api.sno.okd.local @10.66.0.11
+
+
+
 ---
 
 
