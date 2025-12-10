@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# scripts/deploy.sh — versión corregida para SNO REAL
+# scripts/deploy.sh - Script para desplegar un clúster OKD 4.x SNO (Single Node OpenShift) utilizando Terraform.
 
 set -euo pipefail
 
-# Detectar rutas del proyecto
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -14,7 +13,7 @@ TERRAFORM_DIR="${PROJECT_ROOT}/terraform"
 OPENSHIFT_INSTALL_BIN="/opt/bin/openshift-install"
 
 echo "=============================================="
-echo "     DEPLOY OKD 4.x SNO — MODO CORRECTO"
+echo "      DEPLOY OKD 4.x SNO — FINAL"
 echo "=============================================="
 
 mkdir -p "$GENERATED_DIR"
@@ -27,11 +26,11 @@ if [[ ! -x "$OPENSHIFT_INSTALL_BIN" ]]; then
 fi
 
 if [[ ! -f "${INSTALL_DIR}/install-config.yaml" ]]; then
-  echo "❌ ERROR: Falta install-config.yaml en install-config/"
+  echo "❌ ERROR: Falta install-config.yaml"
   exit 1
 fi
 
-# Limpieza previa de ignitions y logs
+# Limpieza previa
 rm -f "${GENERATED_DIR}"/*.ign || true
 rm -f "${IGNITION_DIR}"/*.ign || true
 rm -rf "${GENERATED_DIR}/auth" || true
@@ -40,20 +39,18 @@ rm -f "${PROJECT_ROOT}/.openshift_install.log"* || true
 rm -f "${PROJECT_ROOT}/.openshift_install_state.json"* || true
 rm -f "${PROJECT_ROOT}/.openshift_install.lock"* || true
 
-# Copiar install-config.yaml al directorio generado
+# Copiar install-config
 cp -f "${INSTALL_DIR}/install-config.yaml" "${GENERATED_DIR}/"
 
-# ----------------------------------------------------------
-# GENERAR IGNITIONS EXCLUSIVAMENTE PARA SINGLE NODE OPENSHIFT
-# ----------------------------------------------------------
-echo "✔ Generando Ignition SOLO master.ign (modo SNO)"
+# ===== GENERAR IGNITION SNO REAL =====
+echo "✔ Generando Ignition SNO (Bootstrap-in-place)"
 
-"$OPENSHIFT_INSTALL_BIN" create single-node-ignition-config --dir="${GENERATED_DIR}"
+"${OPENSHIFT_INSTALL_BIN}" create single-node-ignition-config --dir="${GENERATED_DIR}"
 
-# Mover ignitions correctas
-mv -f "${GENERATED_DIR}/master.ign" "$IGNITION_DIR/master.ign"
+# mover ignitions
+mv -f "${GENERATED_DIR}/master.ign" "${IGNITION_DIR}/master.ign"
 
-# symlink auth/
+# auth symlink
 cd "$PROJECT_ROOT"
 rm -rf auth || true
 ln -s generated/auth auth
@@ -63,5 +60,5 @@ terraform -chdir="$TERRAFORM_DIR" init -input=false
 terraform -chdir="$TERRAFORM_DIR" apply -auto-approve
 
 echo "=============================================="
-echo "  ✔ DESPLIEGUE SNO COMPLETADO CORRECTAMENTE"
+echo "   ✔ SNO INSTALADO CORRECTAMENTE"
 echo "=============================================="

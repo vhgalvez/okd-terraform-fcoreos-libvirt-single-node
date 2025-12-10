@@ -3,29 +3,21 @@ baseDomain: okd.local
 metadata:
   name: sno
 
-networking:
-  networkType: OVNKubernetes
-  machineCIDR: 10.66.0.0/24
-  clusterNetwork:
-    - cidr: 10.128.0.0/14
-      hostPrefix: 23
-  serviceNetwork:
-    - 172.30.0.0/16
+controlPlane:
+  name: master
+  replicas: 1
+
+compute: []
 
 platform:
   none: {}
 
-controlPlane:
-  name: master
-  replicas: 1
-  architecture: amd64
-  platform: {}
+bootstrapInPlace:
+  installationDisk: /dev/vda
 
-compute:
-  - name: worker
-    replicas: 0
-    architecture: amd64
-    platform: {}
+networking:
+  networkType: OVNKubernetes
+  machineCIDR: 10.66.0.0/24
 
 sshKey: |
   ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCdfUJjRAJuFcdO0J8CIOkjaKpqP6h9TqDRhZOJTac0199gFUvAJF9R/MAqwDLi2QI6OtYjz1CiCSVLtVQ2fTTIdwVibr+ZKDcbx/E7ivKUUbcmAOU8NP1gv3e3anoUd5k/0h0krP88CXosr41eTih4EcKhBAKbeZ11M0i9GZOux+/WweLtSQ3NU07sUkf1jDIoBungg77unmadqP3m9PUdkFP7tZ2lufcs3iq+vq8JaUBs/hZKNmWOXpnAyNxD9RlBJmvW2QgHmX53y3WC9bWUEUrwfDMB2wAqWPEDfj+5jsXQZcVE4pqD6T1cPaITnr9KFGnCCG1VQg31t1Jttg8z vhgalvez@gmail.com
