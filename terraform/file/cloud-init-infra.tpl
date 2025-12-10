@@ -50,7 +50,6 @@ write_files:
       [ipv6]
       method=ignore
 
-
   ###########################################################
   # NetworkManager: NO modificar resolv.conf
   ###########################################################
@@ -60,9 +59,8 @@ write_files:
       [main]
       dns=none
 
-
   ###########################################################
-  # CoreDNS – Zona DNS autoritativa para SNO
+  # CoreDNS – Zona DNS para Single Node OpenShift
   ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
@@ -73,14 +71,13 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      # API y servicios hacia el SNO
+      # API SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
       ${cluster_name} IN A ${sno_ip}
 
-      # Aplicaciones en el mismo nodo
-      *.apps  IN A ${sno_ip}
-
+      # apps no puede ser wildcard con plugin file
+      apps IN A ${sno_ip}
 
   ###########################################################
   # CoreDNS Corefile
@@ -95,7 +92,6 @@ write_files:
       .:53 {
         forward . 8.8.8.8 1.1.1.1
       }
-
 
   ###########################################################
   # CoreDNS systemd unit
@@ -117,29 +113,24 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-
 ###########################################################
 # RUNCMD
 ###########################################################
 runcmd:
 
-  # Crear directorio de CoreDNS
   - mkdir -p /etc/coredns
 
-  # Aplicar configuración de red
   - nmcli connection reload
   - nmcli connection down eth0 || true
   - nmcli connection up eth0
 
-  # Paquetes necesarios
   - dnf install -y chrony firewalld curl tar bind-utils
 
-  # Configurar NTP apuntando al gateway
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server ${gateway} iburst/' /etc/chrony.conf
   - systemctl restart chronyd
 
-  # Forzar resolv.conf correcto
+  # resolv.conf manual
   - systemctl restart NetworkManager
   - rm -f /etc/resolv.conf
   - printf "nameserver ${dns1}\nnameserver ${dns2}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
@@ -155,8 +146,8 @@ runcmd:
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
 
-  # Habilitar CoreDNS
+  # CoreDNS
   - systemctl daemon-reload
   - systemctl enable --now coredns
 
-final_message: "🔥 Infra SNO DNS listo y funcionando correctamente."
+final_message: "🔥 DNS SNO funcionando correctamente."
