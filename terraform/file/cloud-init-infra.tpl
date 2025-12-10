@@ -85,7 +85,7 @@ write_files:
   - path: /etc/coredns/Corefile
     permissions: "0644"
     content: |
-      ${cluster_name}.${cluster_domain}. {
+      ${cluster_name}.${cluster_domain}.:53 {
         file /etc/coredns/db.okd
       }
 
