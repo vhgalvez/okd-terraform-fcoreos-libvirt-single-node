@@ -3,6 +3,13 @@
 
 set -euo pipefail
 
+# =====================================================
+# Crear carpetas necesarias desde el inicio
+# =====================================================
+mkdir -p "${PROJECT_ROOT}/generated"
+mkdir -p "${PROJECT_ROOT}/generated/ignition"
+
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
