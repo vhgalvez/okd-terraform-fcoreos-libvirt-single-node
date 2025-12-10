@@ -1,4 +1,5 @@
 # terraform/vm-infra.tf
+# terraform/vm-infra.tf
 ###############################################
 # DISCO DEL NODO INFRA (AlmaLinux)
 ###############################################
@@ -13,7 +14,7 @@ resource "libvirt_volume" "infra_disk" {
 # CLOUD-INIT TEMPLATE
 ###############################################
 data "template_file" "infra_cloud_init" {
-  template = file("${path.module}/files/cloud-init-infra.tpl")
+  template = file("${path.module}/file/cloud-init-infra.tpl")
 
   vars = {
     hostname       = var.infra.hostname
@@ -29,9 +30,8 @@ data "template_file" "infra_cloud_init" {
     timezone       = var.timezone
     ssh_keys       = join("\n", var.ssh_keys)
 
-    master_ip   = var.master.ip
-
-    infra_ip = var.infra_ip
+    # IP del nodo SNO (para los registros DNS api / api-int)
+    sno_ip = var.sno.ip
   }
 }
 
@@ -57,7 +57,9 @@ resource "libvirt_domain" "infra" {
   memory    = var.infra.memory
   autostart = true
 
-  cpu { mode = "host-passthrough" }
+  cpu {
+    mode = "host-passthrough"
+  }
 
   arch    = "x86_64"
   machine = "pc"
@@ -89,5 +91,7 @@ resource "libvirt_domain" "infra" {
     autoport       = true
   }
 
-  video { type = "vga" }
+  video {
+    type = "vga"
+  }
 }
