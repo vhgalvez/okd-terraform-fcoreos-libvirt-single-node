@@ -3,7 +3,12 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="/opt/okd-terraform-fcoreos-libvirt-single-node"
+# -----------------------------------------------
+# Detectar automáticamente el directorio del proyecto
+# -----------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 TERRAFORM_DIR="${PROJECT_ROOT}/terraform"
 GENERATED_DIR="${PROJECT_ROOT}/generated"
 
@@ -11,23 +16,46 @@ echo "=============================================="
 echo "    DESTRUYENDO CLÚSTER OKD 4.x SNO"
 echo "=============================================="
 
-# Terraform destroy
-terraform -chdir="$TERRAFORM_DIR" destroy -auto-approve || true
+# -----------------------------------------------
+# 1) Terraform destroy
+# -----------------------------------------------
+if [[ -d "$TERRAFORM_DIR" ]]; then
+    terraform -chdir="$TERRAFORM_DIR" destroy -auto-approve || true
+else
+    echo "⚠ Terraform directory no encontrado: $TERRAFORM_DIR"
+fi
 
-# Carpetas generadas
+# -----------------------------------------------
+# 2) Eliminar carpeta generated
+# -----------------------------------------------
 rm -rf "$GENERATED_DIR"
+echo "✔ Carpeta generated eliminada"
 
-# Logs internos de openshift-install
-rm -f "${PROJECT_ROOT}"/.openshift_install.* || true
+# -----------------------------------------------
+# 3) Logs internos de openshift-install
+# -----------------------------------------------
+rm -f "${PROJECT_ROOT}"/.openshift_install.log* || true
+rm -f "${PROJECT_ROOT}"/.openshift_install_state.json* || true
+rm -f "${PROJECT_ROOT}"/.openshift_install.lock* || true
+echo "✔ Logs internos eliminados"
 
-# Ignitions
-find "$PROJECT_ROOT" -name "*.ign" -exec rm -f {} \;
+# -----------------------------------------------
+# 4) Ignitions en todo el proyecto
+# -----------------------------------------------
+find "$PROJECT_ROOT" -name "*.ign" -exec rm -f {} \; || true
+echo "✔ Ignitions eliminadas"
 
-# auth/
-rm -rf "${PROJECT_ROOT}/auth"
+# -----------------------------------------------
+# 5) auth/ (symlink o carpeta)
+# -----------------------------------------------
+rm -rf "${PROJECT_ROOT}/auth" || true
+echo "✔ auth eliminado"
 
-# Cache
-rm -rf ~/.cache/openshift-install
+# -----------------------------------------------
+# 6) Cache openshift-install
+# -----------------------------------------------
+rm -rf ~/.cache/openshift-install || true
+echo "✔ Cache eliminada"
 
 echo "=============================================="
 echo "     TODO LIMPIO — CLÚSTER ELIMINADO"
