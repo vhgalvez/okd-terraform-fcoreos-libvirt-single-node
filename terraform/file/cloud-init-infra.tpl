@@ -49,7 +49,7 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      # Registros necesarios para SNO
+      # Registros necesarios para Single Node OpenShift
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
       ${cluster_name} IN A ${sno_ip}
@@ -88,12 +88,22 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  ###########################################################
+  # NetworkManager: no tocar resolv.conf
+  ###########################################################
+  - path: /etc/NetworkManager/conf.d/90-dns-none.conf
+    permissions: "0644"
+    content: |
+      [main]
+      dns=none
+
 runcmd:
 
   ###########################################################
-  # Descargar binario CoreDNS — CORREGIDO
+  # Descargar binario CoreDNS
   ###########################################################
   - mkdir -p /etc/coredns
+  - mkdir -p /usr/local/bin
   - cd /tmp
   - curl -LO https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
   - tar -xzf coredns_1.13.1_linux_amd64.tgz
@@ -101,12 +111,17 @@ runcmd:
   - chmod +x /usr/local/bin/coredns
 
   ###########################################################
-  # NTP local
+  # NTP local (host Rocky en 10.66.0.1)
   ###########################################################
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server 10.66.0.1 iburst/' /etc/chrony.conf
   - echo "allow 10.66.0.0/24" >> /etc/chrony.conf
   - systemctl restart chronyd
+
+  ###########################################################
+  # NetworkManager → que no regenere resolv.conf
+  ###########################################################
+  - systemctl restart NetworkManager
 
   ###########################################################
   # resolv.conf del infra → Infra + 8.8.8.8

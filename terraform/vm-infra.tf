@@ -1,5 +1,4 @@
 # terraform/vm-infra.tf
-# terraform/vm-infra.tf
 ###############################################
 # DISCO DEL NODO INFRA (AlmaLinux)
 ###############################################
