@@ -177,6 +177,12 @@ generated/auth/kubeadmin-password
 
 ---
 
-## ❤️ Autor
 
-Proyecto generado automáticamente para **Victor Hugo Gálvez Sastoque**.
+## ✍️ Autor
+
+**Víctor Hugo Gálvez Sastoque**  
+Especialista en DevOps, Infraestructura, Kubernetes y Automatización.  
+Ingeniero con visión estratégica orientado a soluciones escalables y eficientes.
+
+- 🌐 **GitHub:** [@vhgalvez](https://github.com/vhgalvez)
+- 💼 **LinkedIn:** [victor-hugo-galvez-sastoque](https://www.linkedin.com/in/victor-hugo-galvez-sastoque/)
