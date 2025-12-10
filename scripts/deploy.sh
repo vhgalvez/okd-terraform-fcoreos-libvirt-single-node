@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# scripts/deploy.sh
+# scripts/deploy.sh — versión corregida para SNO REAL
 
 set -euo pipefail
 
-# -----------------------------------------------
-# Detectar automáticamente el directorio del proyecto
-# -----------------------------------------------
+# Detectar rutas del proyecto
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -16,63 +14,54 @@ TERRAFORM_DIR="${PROJECT_ROOT}/terraform"
 OPENSHIFT_INSTALL_BIN="/opt/bin/openshift-install"
 
 echo "=============================================="
-echo "      DEPLOY AUTOMÁTICO OKD 4.x SNO"
+echo "     DEPLOY OKD 4.x SNO — MODO CORRECTO"
 echo "=============================================="
 
 mkdir -p "$GENERATED_DIR"
 mkdir -p "$IGNITION_DIR"
 
-# -----------------------------------------------
-# 0) Validaciones
-# -----------------------------------------------
+# Validaciones
 if [[ ! -x "$OPENSHIFT_INSTALL_BIN" ]]; then
-    echo "❌ ERROR: No existe openshift-install en $OPENSHIFT_INSTALL_BIN"
-    exit 1
+  echo "❌ ERROR: No existe openshift-install en $OPENSHIFT_INSTALL_BIN"
+  exit 1
 fi
 
 if [[ ! -f "${INSTALL_DIR}/install-config.yaml" ]]; then
-    echo "❌ ERROR: Falta install-config/install-config.yaml"
-    exit 1
+  echo "❌ ERROR: Falta install-config.yaml en install-config/"
+  exit 1
 fi
 
-# -----------------------------------------------
-# 1) Limpieza ligera
-# -----------------------------------------------
+# Limpieza previa de ignitions y logs
 rm -f "${GENERATED_DIR}"/*.ign || true
 rm -f "${IGNITION_DIR}"/*.ign || true
+rm -rf "${GENERATED_DIR}/auth" || true
 
-rm -f "${PROJECT_ROOT}"/.openshift_install.log* || true
-rm -f "${PROJECT_ROOT}"/.openshift_install_state.json* || true
-rm -f "${PROJECT_ROOT}"/.openshift_install.lock* || true
+rm -f "${PROJECT_ROOT}/.openshift_install.log"* || true
+rm -f "${PROJECT_ROOT}/.openshift_install_state.json"* || true
+rm -f "${PROJECT_ROOT}/.openshift_install.lock"* || true
 
-# -----------------------------------------------
-# 2) Copiar install-config
-# -----------------------------------------------
+# Copiar install-config.yaml al directorio generado
 cp -f "${INSTALL_DIR}/install-config.yaml" "${GENERATED_DIR}/"
 
-# -----------------------------------------------
-# 3) Generar Ignition
-# -----------------------------------------------
-"$OPENSHIFT_INSTALL_BIN" create ignition-configs --dir="$GENERATED_DIR"
+# ----------------------------------------------------------
+# GENERAR IGNITIONS EXCLUSIVAMENTE PARA SINGLE NODE OPENSHIFT
+# ----------------------------------------------------------
+echo "✔ Generando Ignition SOLO master.ign (modo SNO)"
 
-# -----------------------------------------------
-# 4) Mover ignitions
-# -----------------------------------------------
-mv -f "${GENERATED_DIR}"/*.ign "$IGNITION_DIR/"
+"$OPENSHIFT_INSTALL_BIN" create single-node-ignition-config --dir="${GENERATED_DIR}"
 
-# -----------------------------------------------
-# 5) Symlink auth
-# -----------------------------------------------
+# Mover ignitions correctas
+mv -f "${GENERATED_DIR}/master.ign" "$IGNITION_DIR/master.ign"
+
+# symlink auth/
 cd "$PROJECT_ROOT"
 rm -rf auth || true
 ln -s generated/auth auth
 
-# -----------------------------------------------
-# 6) Terraform
-# -----------------------------------------------
+# Terraform deploy
 terraform -chdir="$TERRAFORM_DIR" init -input=false
 terraform -chdir="$TERRAFORM_DIR" apply -auto-approve
 
 echo "=============================================="
-echo " Deploy finalizado correctamente"
+echo "  ✔ DESPLIEGUE SNO COMPLETADO CORRECTAMENTE"
 echo "=============================================="
