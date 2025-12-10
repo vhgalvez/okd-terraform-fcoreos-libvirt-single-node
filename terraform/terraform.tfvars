@@ -43,7 +43,7 @@ sno = {
 ###############################################################
 # DNS + Gateway
 ###############################################################
-dns1    = "10.66.0.11"  # Infra corre CoreDNS
+dns1    = "10.66.0.11" # Infra corre CoreDNS
 dns2    = "8.8.8.8"
 gateway = "10.66.0.1"
 
@@ -54,4 +54,3 @@ cluster_name   = "sno"
 cluster_domain = "okd.local"
 
 timezone = "UTC"
-

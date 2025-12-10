@@ -12,6 +12,7 @@ resource "libvirt_volume" "infra_disk" {
 ###############################################
 # CLOUD-INIT TEMPLATE
 ###############################################
+
 data "template_file" "infra_cloud_init" {
   template = file("${path.module}/file/cloud-init-infra.tpl")
 
@@ -29,10 +30,14 @@ data "template_file" "infra_cloud_init" {
     timezone       = var.timezone
     ssh_keys       = join("\n", var.ssh_keys)
 
-    # IP del nodo SNO (para los registros DNS api / api-int)
+    # IP del nodo SNO (para api / api-int / *.apps)
+    sno_ip = var.sno.ip
+
+    # nodo infra
     infra_ip = var.infra.ip
   }
 }
+
 
 ###############################################
 # CLOUD-INIT DISK

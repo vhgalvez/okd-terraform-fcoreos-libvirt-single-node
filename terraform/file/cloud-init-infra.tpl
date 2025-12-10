@@ -62,7 +62,7 @@ write_files:
 
 
   ###########################################################
-  # CoreDNS – zona DNS mínima corregida
+  # CoreDNS – Zona DNS autoritativa para SNO
   ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
@@ -73,10 +73,13 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      # En multinodo, la API debe responder en infra (HAProxy)
-      api     IN A ${ip}
-      api-int IN A ${ip}
-      ${cluster_name} IN A ${ip}
+      # API y servicios hacia el SNO
+      api     IN A ${sno_ip}
+      api-int IN A ${sno_ip}
+      ${cluster_name} IN A ${sno_ip}
+
+      # Aplicaciones en el mismo nodo
+      *.apps  IN A ${sno_ip}
 
 
   ###########################################################
@@ -89,7 +92,7 @@ write_files:
         file /etc/coredns/db.okd
       }
 
-      . {
+      .:53 {
         forward . 8.8.8.8 1.1.1.1
       }
 
@@ -120,30 +123,40 @@ write_files:
 ###########################################################
 runcmd:
 
+  # Crear directorio de CoreDNS
+  - mkdir -p /etc/coredns
+
+  # Aplicar configuración de red
   - nmcli connection reload
   - nmcli connection down eth0 || true
   - nmcli connection up eth0
 
+  # Paquetes necesarios
   - dnf install -y chrony firewalld curl tar bind-utils
 
+  # Configurar NTP apuntando al gateway
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server ${gateway} iburst/' /etc/chrony.conf
   - systemctl restart chronyd
 
+  # Forzar resolv.conf correcto
+  - systemctl restart NetworkManager
   - rm -f /etc/resolv.conf
   - printf "nameserver ${dns1}\nnameserver ${dns2}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
 
-  - mkdir -p /etc/coredns
+  # Instalar CoreDNS
   - curl -L -o /tmp/coredns.tgz https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
   - tar -xzf /tmp/coredns.tgz -C /usr/local/bin
   - chmod +x /usr/local/bin/coredns
 
+  # Firewall
   - systemctl enable --now firewalld
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
 
+  # Habilitar CoreDNS
   - systemctl daemon-reload
   - systemctl enable --now coredns
 
-final_message: "Infra DNS + NTP funcionando correctamente."
+final_message: "🔥 Infra SNO DNS listo y funcionando correctamente."
