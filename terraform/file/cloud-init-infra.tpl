@@ -49,12 +49,13 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
+      # Registros necesarios para SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
       ${cluster_name} IN A ${sno_ip}
 
   ###########################################################
-  # Corefile (DNS puerto 53 explícito)
+  # CoreDNS — Corefile escuchando en puerto 53
   ###########################################################
   - path: /etc/coredns/Corefile
     permissions: "0644"
@@ -90,7 +91,7 @@ write_files:
 runcmd:
 
   ###########################################################
-  # Descargar binario CoreDNS
+  # Descargar binario CoreDNS — CORREGIDO
   ###########################################################
   - mkdir -p /etc/coredns
   - cd /tmp
@@ -108,10 +109,10 @@ runcmd:
   - systemctl restart chronyd
 
   ###########################################################
-  # resolv.conf del infra → él mismo
+  # resolv.conf del infra → Infra + 8.8.8.8
   ###########################################################
   - rm -f /etc/resolv.conf
-  - printf "nameserver ${ip}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
+  - printf "nameserver ${ip}\nnameserver 8.8.8.8\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
 
   ###########################################################
   # Firewall y servicios
