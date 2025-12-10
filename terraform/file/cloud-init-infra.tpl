@@ -8,6 +8,22 @@ disable_root: false
 
 users:
   - default
+
+  ###########################################################
+  # Usuario CORE (principal en Fedora/Alma)
+  ###########################################################
+  - name: core
+    gecos: "Core User"
+    groups: [wheel]
+    shell: /bin/bash
+    lock_passwd: false
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ${ssh_keys}
+
+  ###########################################################
+  # Usuario ROOT (permitido con clave)
+  ###########################################################
   - name: root
     ssh_authorized_keys:
       - ${ssh_keys}
@@ -46,7 +62,6 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      # Registros necesarios para SNO:
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
       ${cluster_name} IN A ${sno_ip}
@@ -71,17 +86,17 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # NTP: usar 10.66.0.1 (host Rocky)
+  # NTP
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server 10.66.0.1 iburst/' /etc/chrony.conf
   - echo "allow 10.66.0.0/24" >> /etc/chrony.conf
   - systemctl restart chronyd
 
-  # Resolver del infra: él mismo
+  # Resolver local
   - rm -f /etc/resolv.conf
   - printf "nameserver ${ip}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
 
-  # CoreDNS binario
+  # CoreDNS binary
   - mkdir -p /etc/coredns
   - curl -L -o /tmp/coredns.tgz https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
   - tar -xzf /tmp/coredns.tgz -C /usr/local/bin
@@ -90,7 +105,6 @@ runcmd:
   # Firewall + servicios
   - systemctl daemon-reload
   - systemctl enable --now firewalld chronyd coredns
-
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
