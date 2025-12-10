@@ -200,7 +200,7 @@ openshift-install wait-for bootstrap-complete --log-level=info
 ```
 
 
-sudo ssh -i /root/.ssh/cluster_k3s/shared/id_rsa_shared_cluster core@10.66.0.11 -p 22
+sudo ssh -i /root/.ssh/cluster_k3s/shared/id_rsa_shared_cluster core@10.66.0.10 -p 22
 
 ## 🐞 Logs de bootkube y kubelet
 
