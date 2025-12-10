@@ -14,6 +14,8 @@ resource "libvirt_network" "okd_net" {
   mode      = "nat"                   # NAT auto gestionado
   domain    = var.cluster_domain      # "okd.local"
   addresses = [var.network_cidr]      # "10.66.0.0/24"
+  autostart = true
+
 
   # Importante: bridge para esta red SNO
   bridge = "virbr-sno"
