@@ -60,8 +60,7 @@ write_files:
       dns=none
 
   ###########################################################
-  # CoreDNS – Zona DNS autoritativa para SNO
-  # Dominio final: sno.okd.local
+  # CoreDNS – Zona DNS autoritativa para SNO (sno.okd.local)
   ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
@@ -72,15 +71,14 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      ; Nodo SNO (master único)
-      ; sno.okd.local → IP del nodo SNO
+      ; Nodo SNO (master único) → sno.okd.local
       @       IN A ${sno_ip}
 
       ; API SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
 
-      ; apps (sin wildcard por el plugin file)
+      ; apps (sin wildcard por plugin file)
       apps    IN A ${sno_ip}
 
   ###########################################################
@@ -123,23 +121,19 @@ write_files:
 ###########################################################
 runcmd:
 
-  # Directorio CoreDNS
   - mkdir -p /etc/coredns
 
-  # Aplicar NetworkManager
   - nmcli connection reload
   - nmcli connection down eth0 || true
   - nmcli connection up eth0
 
-  # Paquetes base
   - dnf install -y chrony firewalld curl tar bind-utils
 
-  # NTP apuntando al gateway
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server ${gateway} iburst/' /etc/chrony.conf
   - systemctl restart chronyd
 
-  # resolv.conf manual usando INFRA como primer DNS
+  # resolv.conf manual → apunta a INFRA
   - systemctl restart NetworkManager
   - rm -f /etc/resolv.conf
   - printf "nameserver ${dns1}\nnameserver ${dns2}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
