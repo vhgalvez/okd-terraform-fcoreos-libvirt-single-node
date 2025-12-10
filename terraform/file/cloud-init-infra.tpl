@@ -60,23 +60,25 @@ write_files:
       dns=none
 
   ###########################################################
-  # CoreDNS – Zona DNS para Single Node OpenShift
+  # CoreDNS – Zona DNS autoritativa para SNO
   ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
     content: |
       $ORIGIN ${cluster_name}.${cluster_domain}.
-      @ IN SOA infra.${cluster_name}.${cluster_domain}. admin.${cluster_name}.${cluster_domain}. (
-          2025010101 7200 3600 1209600 3600 )
+      @  IN SOA infra.${cluster_name}.${cluster_domain}. admin.${cluster_name}.${cluster_domain}. (
+            2025010101 7200 3600 1209600 3600 )
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      # API SNO
+      ; Registros del SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
+
+      ; Dominio base
       ${cluster_name} IN A ${sno_ip}
 
-      # apps no puede ser wildcard con plugin file
+      ; apps (sin wildcard, plugin file NO lo soporta)
       apps IN A ${sno_ip}
 
   ###########################################################
