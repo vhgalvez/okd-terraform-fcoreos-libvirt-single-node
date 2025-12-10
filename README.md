@@ -189,6 +189,28 @@ dig api.sno.okd.local @10.66.0.11
 
 
 
+## ⏳ Esperar a que el bootstrap complete
+
+```bash
+sudo chown -R $USER:$USER /home/$USER/okd-terraform-fcoreos-libvirt-single-node/
+
+cd /home/$USER/okd-terraform-fcoreos-libvirt-single-node/generated
+
+openshift-install wait-for bootstrap-complete --log-level=info
+```
+
+
+sudo ssh -i /root/.ssh/cluster_k3s/shared/id_rsa_shared_cluster core@10.66.0.11 -p 22
+
+## 🐞 Logs de bootkube y kubelet
+
+```bash
+sudo journalctl -b -f -u bootkube.service
+sudo journalctl -b -f -u kubelet.service
+```
+
+
+
 ---
 
 
