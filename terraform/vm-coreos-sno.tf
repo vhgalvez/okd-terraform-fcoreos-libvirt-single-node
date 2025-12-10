@@ -2,7 +2,35 @@
 # terraform\vm-coreos-sno.tf
 
 ###############################################
-# VM OKD SNO – Fedora CoreOS (Ignition)
+# DISK BASE + OVERLAY
+###############################################
+
+resource "libvirt_volume" "coreos_base" {
+  name   = "fcos-base.qcow2"
+  pool   = libvirt_pool.okd.name
+  source = var.coreos_image
+  format = "qcow2"
+}
+
+resource "libvirt_volume" "sno_disk" {
+  name           = "okd-sno.qcow2"
+  pool           = libvirt_pool.okd.name
+  base_volume_id = libvirt_volume.coreos_base.id
+  format         = "qcow2"
+}
+
+###############################################
+# IGNITION
+###############################################
+
+resource "libvirt_ignition" "sno_ign" {
+  name    = "sno.ign"
+  pool    = libvirt_pool.okd.name
+  content = file("${path.module}/../generated/ignition/master.ign")
+}
+
+###############################################
+# DOMAIN SNO
 ###############################################
 
 resource "libvirt_domain" "sno" {
@@ -11,16 +39,10 @@ resource "libvirt_domain" "sno" {
   memory    = var.sno.memory
   autostart = true
 
-  ###############################################
-  # DISCO DE LA VM
-  ###############################################
   disk {
     volume_id = libvirt_volume.sno_disk.id
   }
 
-  ###############################################
-  # RED – IP, MAC y hostname necesarios para OKD
-  ###############################################
   network_interface {
     network_name   = libvirt_network.okd_net.name
     mac            = var.sno.mac
@@ -29,25 +51,16 @@ resource "libvirt_domain" "sno" {
     wait_for_lease = true
   }
 
-  ###############################################
-  # CPU PASSTHROUGH (requerido por FCOS/OKD)
-  ###############################################
   cpu {
     mode = "host-passthrough"
   }
 
-  ###############################################
-  # CONSOLA SERIAL (Ignition la necesita)
-  ###############################################
   console {
     type        = "pty"
     target_type = "serial"
     target_port = 0
   }
 
-  ###############################################
-  # VNC — Útil para debug
-  ###############################################
   graphics {
     type           = "vnc"
     listen_type    = "address"
@@ -59,10 +72,6 @@ resource "libvirt_domain" "sno" {
     type = "vga"
   }
 
-  ###############################################
-  # IGNITION para Fedora CoreOS
-  # Esto es CRÍTICO — sin esto NO ARRANCA OKD
-  ###############################################
   coreos_ignition = libvirt_ignition.sno_ign.id
   fw_cfg_name     = "opt/com.coreos/config"
 }
