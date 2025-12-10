@@ -15,6 +15,6 @@ sno = {
   hostname = "okd.okd.local"
   ip       = "10.56.0.10"
   mac      = "52:54:00:aa:bb:10"
-  cpus     = 4
-  memory   = 16384
+  cpus     = 12
+  memory   = 32768 # 32 GB RAM
 }
