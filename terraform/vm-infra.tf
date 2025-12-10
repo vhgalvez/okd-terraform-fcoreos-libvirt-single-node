@@ -30,7 +30,7 @@ data "template_file" "infra_cloud_init" {
     ssh_keys       = join("\n", var.ssh_keys)
 
     # IP del nodo SNO (para los registros DNS api / api-int)
-    sno_ip = var.sno.ip
+    infra_ip = var.infra.ip
   }
 }
 

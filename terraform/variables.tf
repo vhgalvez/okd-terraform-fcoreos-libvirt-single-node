@@ -111,3 +111,12 @@ variable "timezone" {
   type        = string
   description = "Zona horaria"
 }
+
+
+#############################################
+# IP del nodo infra
+#############################################
+variable "infra_ip" {
+  description = "IP del servidor infra (DNS forwarder)"
+  type        = string
+}
