@@ -8,10 +8,6 @@ disable_root: false
 
 users:
   - default
-
-  ###########################################################
-  # Usuario CORE (principal en Fedora/Alma)
-  ###########################################################
   - name: core
     gecos: "Core User"
     groups: [wheel]
@@ -21,9 +17,6 @@ users:
     ssh_authorized_keys:
       - ${ssh_keys}
 
-  ###########################################################
-  # Usuario ROOT (permitido con clave)
-  ###########################################################
   - name: root
     ssh_authorized_keys:
       - ${ssh_keys}
@@ -39,19 +32,24 @@ packages:
   - curl
 
 write_files:
+
   ###########################################################
-  # CoreDNS – zona para SNO
+  # CoreDNS – Corefile corregido
   ###########################################################
   - path: /etc/coredns/Corefile
     permissions: "0644"
     content: |
-      ${cluster_name}.${cluster_domain}. {
+      ${cluster_name}.${cluster_domain}.:53 {
         file /etc/coredns/db.okd
       }
-      . {
+
+      .:53 {
         forward . 8.8.8.8 1.1.1.1
       }
 
+  ###########################################################
+  # Zona DNS del cluster SNO
+  ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
     content: |
@@ -67,7 +65,7 @@ write_files:
       ${cluster_name} IN A ${sno_ip}
 
   ###########################################################
-  # CoreDNS systemd unit
+  # CoreDNS systemd unit CORREGIDO
   ###########################################################
   - path: /etc/systemd/system/coredns.service
     permissions: "0644"
@@ -78,7 +76,7 @@ write_files:
       Wants=network-online.target
 
       [Service]
-      ExecStart=/usr/local/bin/coredns -conf=/etc/coredns/Corefile
+      ExecStart=/usr/local/bin/coredns -conf=/etc/coredns/Corefile -dns.port=53
       Restart=always
       LimitNOFILE=1048576
 
@@ -86,7 +84,6 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  # NTP
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server 10.66.0.1 iburst/' /etc/chrony.conf
   - echo "allow 10.66.0.0/24" >> /etc/chrony.conf
@@ -96,15 +93,19 @@ runcmd:
   - rm -f /etc/resolv.conf
   - printf "nameserver ${ip}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
 
-  # CoreDNS binary
+  # Descargar CoreDNS correctamente
   - mkdir -p /etc/coredns
-  - curl -L -o /tmp/coredns.tgz https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
-  - tar -xzf /tmp/coredns.tgz -C /usr/local/bin
+  - cd /tmp
+  - curl -LO https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
+  - tar -xzf coredns_1.13.1_linux_amd64.tgz
+  - mv coredns /usr/local/bin/
   - chmod +x /usr/local/bin/coredns
 
-  # Firewall + servicios
+  # Activar servicios
   - systemctl daemon-reload
-  - systemctl enable --now firewalld chronyd coredns
+  - systemctl enable --now firewalld coredns
+
+  # Abrir puertos DNS
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
