@@ -29,7 +29,7 @@ users:
 write_files:
 
   ###########################################################
-  # NetworkManager – IP fija + DNS (NECESARIO)
+  # NetworkManager – IP fija + DNS
   ###########################################################
   - path: /etc/NetworkManager/system-connections/eth0.nmconnection
     permissions: "0600"
@@ -52,7 +52,7 @@ write_files:
 
 
   ###########################################################
-  # NetworkManager: NO tocar resolv.conf
+  # NetworkManager: NO modificar resolv.conf
   ###########################################################
   - path: /etc/NetworkManager/conf.d/dns-none.conf
     permissions: "0644"
@@ -62,7 +62,7 @@ write_files:
 
 
   ###########################################################
-  # CoreDNS – zona DNS mínima
+  # CoreDNS – zona DNS mínima corregida
   ###########################################################
   - path: /etc/coredns/db.okd
     permissions: "0644"
@@ -73,9 +73,10 @@ write_files:
       @       IN NS infra.${cluster_name}.${cluster_domain}.
       infra   IN A ${ip}
 
-      api     IN A ${sno_ip}
-      api-int IN A ${sno_ip}
-      ${cluster_name} IN A ${sno_ip}
+      # En multinodo, la API debe responder en infra (HAProxy)
+      api     IN A ${ip}
+      api-int IN A ${ip}
+      ${cluster_name} IN A ${ip}
 
 
   ###########################################################
@@ -119,36 +120,29 @@ write_files:
 ###########################################################
 runcmd:
 
-  # Aplicar IP fija de NetworkManager
   - nmcli connection reload
   - nmcli connection down eth0 || true
   - nmcli connection up eth0
 
-  # Paquetes
   - dnf install -y chrony firewalld curl tar bind-utils
 
-  # NTP
   - systemctl enable --now chronyd
   - sed -i 's/^pool.*/server ${gateway} iburst/' /etc/chrony.conf
   - systemctl restart chronyd
 
-  # resolv.conf manual
   - rm -f /etc/resolv.conf
   - printf "nameserver ${dns1}\nnameserver ${dns2}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
 
-  # Instalar CoreDNS
   - mkdir -p /etc/coredns
   - curl -L -o /tmp/coredns.tgz https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
   - tar -xzf /tmp/coredns.tgz -C /usr/local/bin
   - chmod +x /usr/local/bin/coredns
 
-  # Firewall
   - systemctl enable --now firewalld
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
 
-  # CoreDNS
   - systemctl daemon-reload
   - systemctl enable --now coredns
 
