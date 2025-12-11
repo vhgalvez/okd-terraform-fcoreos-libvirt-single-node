@@ -36,6 +36,22 @@ resource "libvirt_domain" "sno" {
     volume_id = libvirt_volume.sno_disk.id
   }
 
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = 0
+  }
+
+  graphics {
+    type           = "vnc"
+    listen_type    = "address"
+    listen_address = "127.0.0.1"
+    autoport       = true
+  }
+
+  video { type = "vga" }
+
   network_interface {
     network_name   = libvirt_network.okd_net_sno.name
     mac            = var.sno.mac
