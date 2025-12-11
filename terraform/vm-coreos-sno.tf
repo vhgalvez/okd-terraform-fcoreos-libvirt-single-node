@@ -26,7 +26,7 @@ resource "libvirt_volume" "sno_disk" {
 resource "libvirt_ignition" "sno_ign" {
   name    = "sno.ign"
   pool    = libvirt_pool.okd.name
-  content = file("${path.module}/../generated/ignition/sno.ign")
+  content = file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
 }
 
 ###############################################
