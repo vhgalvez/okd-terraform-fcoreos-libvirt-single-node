@@ -70,7 +70,6 @@ resource "libvirt_domain" "sno" {
     mac            = var.sno.mac
     addresses      = [var.sno.ip]
     hostname       = var.sno.hostname
-    wait_for_lease = true
   }
 
   coreos_ignition = libvirt_ignition.sno_ign.id
