@@ -46,6 +46,27 @@ resource "libvirt_domain" "infra" {
 
   cpu { mode = "host-passthrough" }
 
+ cpu { mode = "host-passthrough" }
+
+  arch    = "x86_64"
+  machine = "pc"
+
+
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = 0
+  }
+
+  graphics {
+    type           = "vnc"
+    listen_type    = "address"
+    listen_address = "127.0.0.1"
+    autoport       = true
+  }
+
+  video { type = "vga" }
+
   disk {
     volume_id = libvirt_volume.infra_disk.id
   }
@@ -59,3 +80,4 @@ resource "libvirt_domain" "infra" {
     hostname       = var.infra.hostname
   }
 }
+
