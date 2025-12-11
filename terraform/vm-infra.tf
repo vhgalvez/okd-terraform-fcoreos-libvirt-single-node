@@ -75,7 +75,7 @@ resource "libvirt_domain" "infra" {
   cloudinit = libvirt_cloudinit_disk.infra_init.id
 
   network_interface {
-    network_name   = libvirt_network.okd_net.name
+    network_name   = libvirt_network.okd_net-sno.name
     mac            = var.infra.mac
     addresses      = [var.infra.ip]
     hostname       = var.infra.hostname

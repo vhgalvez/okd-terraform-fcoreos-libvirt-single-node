@@ -44,7 +44,7 @@ resource "libvirt_domain" "sno" {
   }
 
   network_interface {
-    network_name   = libvirt_network.okd_net.name
+    network_name   = libvirt_network.okd_net-sno.name
     mac            = var.sno.mac
     addresses      = [var.sno.ip]
     hostname       = var.sno.hostname
