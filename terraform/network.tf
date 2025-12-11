@@ -9,33 +9,30 @@ resource "libvirt_pool" "okd" {
   }
 }
 
-resource "libvirt_network" "okd_net" {
-  name      = var.network_name        # "okd-sno-net"
-  mode      = "nat"                   # NAT auto gestionado
-  domain    = var.cluster_domain      # "okd.local"
-  addresses = [var.network_cidr]      # "10.66.0.0/24"
+resource "libvirt_network" "okd_net-sno" {
+  name      = var.network_name        # ej: okd-sno-net
+  mode      = "nat"
+  bridge    = "virbr-sno"           # ej: virbr-sno
+  addresses = [var.network_cidr]      # 10.66.0.0/24
   autostart = true
 
+  # NO usamos domain= para no hacer libvirt autoritativo de okd.local
 
-  # Importante: bridge para esta red SNO
-  bridge = "virbr-sno"
-
-  # DHCP solo para gateway interno de libvirt
   dhcp {
     enabled = true
   }
 
-  # Bloque DNS soportado por Terraform/libvirt
   dns {
     enabled = true
 
+    # Primer DNS → CoreDNS INFRA
     forwarders {
-      address = var.dns1   # CoreDNS INFRA 10.66.0.11
+      address = var.dns1   # 10.66.0.11
     }
 
+    # Segundo DNS → Google como fallback
     forwarders {
-      address = var.dns2   # Google DNS 8.8.8.8
+      address = var.dns2   # 8.8.8.8
     }
   }
 }
-
