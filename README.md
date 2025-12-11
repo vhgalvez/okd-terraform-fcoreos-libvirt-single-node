@@ -209,6 +209,15 @@ sudo journalctl -b -f -u bootkube.service
 sudo journalctl -b -f -u kubelet.service
 ```
 
+## 📥 Instalar y configurar yq (YAML processor)
+```bash
+sudo wget -O /usr/local/bin/yq \
+  https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+
+sudo chmod +x /usr/local/bin/yq
+yq --version
+```
+
 
 
 ---

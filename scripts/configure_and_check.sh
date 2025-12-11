@@ -39,18 +39,35 @@ echo "✔ kubeconfig configurado en $KCFG"
 echo
 echo "[2/4] 🌐 Verificando DNS…"
 
-NAME=$(yq e '.metadata.name' "$ROOT/install-config/install-config.yaml")
-DOMAIN=$(yq e '.baseDomain' "$ROOT/install-config/install-config.yaml")
+INSTALL_CFG="$ROOT/install-config/install-config.yaml"
+
+# Extraer metadata.name
+NAME=$(grep -A2 '^metadata:' "$INSTALL_CFG" | grep "name:" | awk '{print $2}' | tr -d '"')
+
+# Extraer baseDomain
+DOMAIN=$(grep '^baseDomain:' "$INSTALL_CFG" | awk '{print $2}' | tr -d '"')
+
+if [[ -z "$NAME" || -z "$DOMAIN" ]]; then
+    echo "❌ ERROR: No se pudo extraer NAME o DOMAIN de install-config.yaml"
+    exit 1
+fi
 
 API="api.$NAME.$DOMAIN"
 API_INT="api-int.$NAME.$DOMAIN"
 
+echo "Detectado:"
+echo "  • Cluster name = $NAME"
+echo "  • Base domain  = $DOMAIN"
+echo "  • API          = $API"
+echo "  • API-INT      = $API_INT"
+echo
+
 echo "→ dig $API"
-dig "$API" || echo "⚠ No responde DNS externo para $API"
+dig "$API" || echo "⚠ No responde DNS para $API"
 
 echo
 echo "→ dig $API_INT"
-dig "$API_INT" || echo "⚠ No responde DNS api-int"
+dig "$API_INT" || echo "⚠ No responde DNS para $API_INT"
 
 
 ###############################################################################
@@ -79,13 +96,13 @@ echo "[4/4] 🐞 Verificando estado de kubelet…"
 if systemctl is-active --quiet kubelet; then
     echo "✔ kubelet activo"
 else
-    echo "❌ kubelet no está activo"
+    echo "❌ kubelet NO está activo"
     echo "   → journalctl -u kubelet -b -n 50"
     exit 1
 fi
 
 echo
-echo "→ Últimas 20 líneas de kubelet:"
+echo "→ Últimas 20 líneas del kubelet:"
 sudo journalctl -u kubelet -n 20 || true
 
 
