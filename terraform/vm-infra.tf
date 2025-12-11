@@ -46,11 +46,8 @@ resource "libvirt_domain" "infra" {
 
   cpu { mode = "host-passthrough" }
 
- cpu { mode = "host-passthrough" }
-
   arch    = "x86_64"
   machine = "pc"
-
 
   console {
     type        = "pty"
@@ -74,10 +71,10 @@ resource "libvirt_domain" "infra" {
   cloudinit = libvirt_cloudinit_disk.infra_init.id
 
   network_interface {
-    network_name   = libvirt_network.okd_net_sno.name
-    mac            = var.infra.mac
-    addresses      = [var.infra.ip]
-    hostname       = var.infra.hostname
+    network_name = libvirt_network.okd_net_sno.name
+    mac          = var.infra.mac
+    addresses    = [var.infra.ip]
+    hostname     = var.infra.hostname
   }
 }
 
