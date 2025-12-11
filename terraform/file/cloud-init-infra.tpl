@@ -17,6 +17,9 @@ users:
 
 write_files:
 
+  ###########################################################
+  # NetworkManager: eth0 estático + DNS
+  ###########################################################
   - path: /etc/NetworkManager/system-connections/eth0.nmconnection
     permissions: "0600"
     content: |
@@ -28,12 +31,15 @@ write_files:
       [ipv4]
       method=manual
       address1=${ip}/24,${gateway}
-      dns=${dns1}
+      dns=${dns1};${dns2}
       may-fail=false
 
       [ipv6]
       method=ignore
 
+  ###########################################################
+  # Zona DNS para sno.okd.local (CoreDNS)
+  ###########################################################
   - path: /etc/coredns/db.sno.okd
     permissions: "0644"
     content: |
@@ -50,6 +56,9 @@ write_files:
       apps    IN A ${sno_ip}
       *.apps  IN A ${sno_ip}
 
+  ###########################################################
+  # Corefile de CoreDNS
+  ###########################################################
   - path: /etc/coredns/Corefile
     permissions: "0644"
     content: |
@@ -61,19 +70,51 @@ write_files:
         forward . 8.8.8.8 1.1.1.1
       }
 
-runcmd:
-  - nmcli connection reload
-  - systemctl enable --now chronyd
-  - dnf install -y firewalld bind-utils
+  ###########################################################
+  # Unit systemd para CoreDNS
+  ###########################################################
+  - path: /etc/systemd/system/coredns.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=CoreDNS DNS server
+      After=network-online.target
+      Wants=network-online.target
 
+      [Service]
+      ExecStart=/usr/local/bin/coredns -conf=/etc/coredns/Corefile
+      Restart=always
+      RestartSec=2
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Recargar configuración de NetworkManager
+  - nmcli connection reload
+  - nmcli connection down eth0 || true
+  - nmcli connection up eth0
+
+  # Sincronización horaria y herramientas útiles
+  - dnf install -y chrony firewalld bind-utils tar wget
+  - systemctl enable --now chronyd
+
+  # Abrir puertos DNS
+  - systemctl enable --now firewalld
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
 
-  - curl -L -o /usr/local/bin/coredns \
-      https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
+  # Crear directorio de CoreDNS
+  - mkdir -p /etc/coredns
+
+  # Descargar e instalar CoreDNS correctamente (tar.gz → binario)
+  - cd /usr/local/bin
+  - wget https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
+  - tar -xzf coredns_1.13.1_linux_amd64.tgz
   - chmod +x /usr/local/bin/coredns
 
+  # Activar servicio CoreDNS
   - systemctl daemon-reload
   - systemctl enable --now coredns
 
