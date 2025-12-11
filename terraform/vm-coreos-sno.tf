@@ -23,9 +23,9 @@ resource "libvirt_ignition" "sno_ign" {
   pool = libvirt_pool.okd.name
 
   content = templatefile("${path.module}/file/sno-ignition-wrapper.json", {
-    base_ign = file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
-    dns1     = var.dns1
-    dns2     = var.dns2
+    base_ign_b64 = base64encode(file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign"))
+    dns1         = var.dns1
+    dns2         = var.dns2
   })
 }
 
