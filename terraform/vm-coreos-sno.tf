@@ -36,7 +36,6 @@ resource "libvirt_domain" "sno" {
     volume_id = libvirt_volume.sno_disk.id
   }
 
-
   console {
     type        = "pty"
     target_type = "serial"
@@ -53,10 +52,10 @@ resource "libvirt_domain" "sno" {
   video { type = "vga" }
 
   network_interface {
-    network_name   = libvirt_network.okd_net_sno.name
-    mac            = var.sno.mac
-    addresses      = [var.sno.ip]
-    hostname       = var.sno.hostname
+    network_name = libvirt_network.okd_net_sno.name
+    mac          = var.sno.mac
+    addresses    = [var.sno.ip]
+    hostname     = var.sno.hostname
   }
 
   coreos_ignition = libvirt_ignition.sno_ign.id

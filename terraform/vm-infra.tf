@@ -77,4 +77,3 @@ resource "libvirt_domain" "infra" {
     hostname     = var.infra.hostname
   }
 }
-
