@@ -18,17 +18,30 @@ resource "libvirt_volume" "sno_disk" {
   format         = "qcow2"
 }
 
-resource "libvirt_ignition" "sno_ign" {
-  name = "sno.ign"
-  pool = libvirt_pool.okd.name
-
-  content = templatefile("${path.module}/file/sno-ignition-wrapper.json", {
+###############################################
+# GENERACIÓN + VALIDACIÓN DEL IGNITION
+###############################################
+locals {
+  # 1) Render del wrapper con parámetros dinámicos
+  sno_ign_json = templatefile("${path.module}/file/sno-ignition-wrapper.json", {
     base_ign_b64 = base64encode(file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign"))
     dns1         = var.dns1
     dns2         = var.dns2
   })
+
+  # 2) Validación JSON — si falla, Terraform aborta ANTES de crear la VM
+  sno_ign_validated = jsonencode(jsondecode(local.sno_ign_json))
 }
 
+resource "libvirt_ignition" "sno_ign" {
+  name    = "sno.ign"
+  pool    = libvirt_pool.okd.name
+  content = local.sno_ign_validated
+}
+
+###############################################
+# VM SNO – Single Node OpenShift
+###############################################
 resource "libvirt_domain" "sno" {
   name      = "okd-sno"
   vcpu      = var.sno.cpus
@@ -64,6 +77,7 @@ resource "libvirt_domain" "sno" {
     wait_for_lease = true
   }
 
+  # Ignition validado y seguro
   coreos_ignition = libvirt_ignition.sno_ign.id
   fw_cfg_name     = "opt/com.coreos/config"
 }
