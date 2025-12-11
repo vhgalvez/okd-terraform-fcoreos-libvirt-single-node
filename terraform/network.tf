@@ -9,14 +9,12 @@ resource "libvirt_pool" "okd" {
   }
 }
 
-resource "libvirt_network" "okd_net-sno" {
-  name      = var.network_name        # ej: okd-sno-net
+resource "libvirt_network" "okd_net_sno" {
+  name      = var.network_name
   mode      = "nat"
-  bridge    = "virbr-sno"           # ej: virbr-sno
-  addresses = [var.network_cidr]      # 10.66.0.0/24
+  bridge    = "virbr-sno"
+  addresses = [var.network_cidr]
   autostart = true
-
-  # NO usamos domain= para no hacer libvirt autoritativo de okd.local
 
   dhcp {
     enabled = true
@@ -25,14 +23,11 @@ resource "libvirt_network" "okd_net-sno" {
   dns {
     enabled = true
 
-    # Primer DNS → CoreDNS INFRA
     forwarders {
-      address = var.dns1   # 10.66.0.11
+      address = var.dns1   # CoreDNS infra
     }
-
-    # Segundo DNS → Google como fallback
     forwarders {
-      address = var.dns2   # 8.8.8.8
+      address = var.dns2   # Google fallback
     }
   }
 }

@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
 # scripts/deploy.sh — SNO REAL OKD 4.x deploy (Terraform + Ignition + auth symlink)
+
 set -euo pipefail
 
-###############################################
-# RUTAS BASE
-###############################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
+mkdir -p "${PROJECT_ROOT}/generated"
+mkdir -p "${PROJECT_ROOT}/generated/ignition"
+
 INSTALL_DIR="${PROJECT_ROOT}/install-config"
 GENERATED_DIR="${PROJECT_ROOT}/generated"
-IGNITION_DIR="${GENERATED_DIR}/ignition"
+IGNITION_DIR="${GENERATED_DIR}/ignition}"
 TERRAFORM_DIR="${PROJECT_ROOT}/terraform"
+
+# ================================
+#  Valor por defecto SEGURO
+#  (no falla con sudo ni con -u)
+# ================================
+: "${OPENSHIFT_INSTALL_BIN:=/opt/bin/openshift-install}"
 
 ###############################################
 # DETECCIÓN AUTOMÁTICA DE openshift-install
@@ -45,92 +52,71 @@ echo "✔ Usando openshift-install: $OPENSHIFT_INSTALL_BIN_DETECTED"
 ###############################################
 # VALIDACIONES
 ###############################################
-
-# Validar Terraform
 if ! command -v terraform &>/dev/null; then
-    echo "❌ ERROR: Terraform no está instalado o no está en el PATH."
+    echo "❌ ERROR: Terraform no está instalado."
     exit 1
 fi
 
-# Validar install-config
 if [[ ! -f "${INSTALL_DIR}/install-config.yaml" ]]; then
-    echo "❌ ERROR: Falta install-config.yaml en ${INSTALL_DIR}/"
+    echo "❌ ERROR: FALTA install-config.yaml en ${INSTALL_DIR}/"
     exit 1
 fi
 
 ###############################################
-# CREAR ESTRUCTURA DE CARPETAS
+# LIMPIEZA LIGERA
 ###############################################
-echo "📁 Creando estructura interna…"
-mkdir -p "$GENERATED_DIR"
-mkdir -p "$IGNITION_DIR"
+echo "🧹 Limpieza ligera…"
+
+rm -f "${GENERATED_DIR}"/*.ign || true
+rm -f "${IGNITION_DIR}"/*.ign || true
+rm -f "${PROJECT_ROOT}"/.openshift_install* || true
+rm -f "${PROJECT_ROOT}/metadata.json" || true
 
 ###############################################
-# LIMPIEZA LIGERA (NO destruye Terraform state)
+# COPIAR CONFIG
 ###############################################
-echo "🧹 Limpiando restos anteriores…"
-
-rm -f "${GENERATED_DIR}"/*.ign 2>/dev/null || true
-rm -f "${IGNITION_DIR}"/*.ign 2>/dev/null || true
-
-rm -f "${PROJECT_ROOT}"/.openshift_install.log*        2>/dev/null || true
-rm -f "${PROJECT_ROOT}"/.openshift_install_state.json* 2>/dev/null || true
-rm -f "${PROJECT_ROOT}"/.openshift_install.lock*       2>/dev/null || true
-
-rm -f "${PROJECT_ROOT}/metadata.json" 2>/dev/null || true
-
-###############################################
-# COPIA install-config.yaml
-###############################################
-echo "📄 Copiando install-config.yaml a generated/"
+echo "📄 Copiando install-config.yaml…"
 cp -f "${INSTALL_DIR}/install-config.yaml" "${GENERATED_DIR}/install-config.yaml"
 
 ###############################################
-# GENERAR IGNITION DEL SNO (bootstrap-in-place)
+# GENERAR IGNITION SNO
 ###############################################
-echo "⚙️ Generando Ignition (SNO bootstrap-in-place)…"
+echo "⚙️ Generando Ignition SNO…"
 
 "$OPENSHIFT_INSTALL_BIN_DETECTED" create single-node-ignition-config --dir="$GENERATED_DIR"
 
 IGN_FILE="${GENERATED_DIR}/bootstrap-in-place-for-live-iso.ign"
-
 if [[ ! -f "$IGN_FILE" ]]; then
-    echo "❌ ERROR: No se generó la Ignition"
+    echo "❌ ERROR: No se generó la Ignition."
     exit 1
 fi
 
 echo "✔ Ignition generada: $IGN_FILE"
-
-echo "[+] Moviendo Ignition a ${IGNITION_DIR}/sno.ign"
+mkdir -p "$IGNITION_DIR"
 cp -f "$IGN_FILE" "${IGNITION_DIR}/sno.ign"
 
 ###############################################
-# SYMLINK auth → generated/auth
+# SYMLINK auth
 ###############################################
-echo "🔗 Verificando symlink auth → generated/auth"
+echo "🔗 Verificando auth…"
 
-if [[ -L "${PROJECT_ROOT}/auth" ]]; then
-    echo "✔ Symlink ya existe"
-elif [[ -d "${PROJECT_ROOT}/auth" ]]; then
-    echo "⚠ auth existe como directorio — eliminando"
-    rm -rf "${PROJECT_ROOT}/auth"
-    ln -s generated/auth auth
-    echo "✔ Symlink recreado"
+if [[ -L auth ]]; then
+    echo "✔ auth es symlink"
 else
+    rm -rf auth || true
     ln -s generated/auth auth
-    echo "✔ Symlink creado"
+    echo "✔ Symlink auth → generated/auth creado"
 fi
 
 ###############################################
-# EJECUTAR TERRAFORM
+# TERRAFORM
 ###############################################
-echo "🚀 Terraform init…"
+echo "🚀 Ejecutando Terraform…"
 terraform -chdir="$TERRAFORM_DIR" init -input=false
 
 TFVARS=()
-[[ -f "${TERRAFORM_DIR}/terraform.tfvars" ]] && TFVARS+=( -var-file="terraform.tfvars" )
+[[ -f "${TERRAFORM_DIR}/terraform.tfvars" ]] && TFVARS+=(-var-file="terraform.tfvars")
 
-echo "🚀 Terraform apply…"
 terraform -chdir="$TERRAFORM_DIR" apply -auto-approve "${TFVARS[@]}"
 
 ###############################################

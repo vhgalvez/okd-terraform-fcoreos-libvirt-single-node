@@ -1,36 +1,22 @@
 #cloud-config
 hostname: ${hostname}
-manage_etc_hosts: false
+manage_etc_hosts: true
 timezone: ${timezone}
 
 ssh_pwauth: false
-disable_root: false
 
 users:
-  - default
-
-  - name: core
-    gecos: "Core User"
-    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
-    groups: [wheel]
-    shell: /bin/bash
-    lock_passwd: false
-    ssh_authorized_keys:
-      - ${ssh_keys}
-
   - name: root
     ssh_authorized_keys:
       - ${ssh_keys}
-
-###########################################################
-# WRITE FILES
-###########################################################
+  - name: core
+    shell: /bin/bash
+    sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+    ssh_authorized_keys:
+      - ${ssh_keys}
 
 write_files:
 
-  ###########################################################
-  # NetworkManager – IP fija + DNS
-  ###########################################################
   - path: /etc/NetworkManager/system-connections/eth0.nmconnection
     permissions: "0600"
     content: |
@@ -38,119 +24,57 @@ write_files:
       id=eth0
       type=ethernet
       interface-name=eth0
-      autoconnect=true
 
       [ipv4]
       method=manual
       address1=${ip}/24,${gateway}
-      dns=${dns1};${dns2}
-      dns-search=${cluster_name}.${cluster_domain}
+      dns=${dns1}
       may-fail=false
 
       [ipv6]
       method=ignore
 
-  ###########################################################
-  # NetworkManager: NO modificar resolv.conf
-  ###########################################################
-  - path: /etc/NetworkManager/conf.d/dns-none.conf
-    permissions: "0644"
-    content: |
-      [main]
-      dns=none
-
-  ###########################################################
-  # CoreDNS – Zona DNS autoritativa para SNO (sno.okd.local)
-  ###########################################################
-  - path: /etc/coredns/db.okd
+  - path: /etc/coredns/db.sno.okd
     permissions: "0644"
     content: |
       $ORIGIN ${cluster_name}.${cluster_domain}.
-      @  IN SOA infra.${cluster_name}.${cluster_domain}. admin.${cluster_name}.${cluster_domain}. (
+      @   IN SOA infra.${cluster_name}.${cluster_domain}. admin.${cluster_name}.${cluster_domain}. (
             2025010101 7200 3600 1209600 3600 )
       @       IN NS infra.${cluster_name}.${cluster_domain}.
-      infra   IN A ${ip}
+      infra   IN A ${infra_ip}
 
-      ; Nodo SNO (master único) → sno.okd.local
-      @       IN A ${sno_ip}
-
-      ; API SNO
       api     IN A ${sno_ip}
       api-int IN A ${sno_ip}
 
-      ; apps (sin wildcard por plugin file)
+      sno     IN A ${sno_ip}
       apps    IN A ${sno_ip}
+      *.apps  IN A ${sno_ip}
 
-  ###########################################################
-  # CoreDNS Corefile
-  ###########################################################
   - path: /etc/coredns/Corefile
     permissions: "0644"
     content: |
       ${cluster_name}.${cluster_domain}.:53 {
-        file /etc/coredns/db.okd
+        file /etc/coredns/db.sno.okd
         reload
       }
-
       .:53 {
         forward . 8.8.8.8 1.1.1.1
       }
 
-  ###########################################################
-  # CoreDNS systemd unit
-  ###########################################################
-  - path: /etc/systemd/system/coredns.service
-    permissions: "0644"
-    content: |
-      [Unit]
-      Description=CoreDNS DNS server
-      After=network-online.target
-      Wants=network-online.target
-
-      [Service]
-      ExecStart=/usr/local/bin/coredns -conf=/etc/coredns/Corefile
-      Restart=always
-      RestartSec=2
-      LimitNOFILE=1048576
-
-      [Install]
-      WantedBy=multi-user.target
-
-###########################################################
-# RUNCMD
-###########################################################
 runcmd:
-
-  - mkdir -p /etc/coredns
-
   - nmcli connection reload
-  - nmcli connection down eth0 || true
-  - nmcli connection up eth0
-
-  - dnf install -y chrony firewalld curl tar bind-utils
-
   - systemctl enable --now chronyd
-  - sed -i 's/^pool.*/server ${gateway} iburst/' /etc/chrony.conf
-  - systemctl restart chronyd
+  - dnf install -y firewalld bind-utils
 
-  # resolv.conf manual → apunta a INFRA
-  - systemctl restart NetworkManager
-  - rm -f /etc/resolv.conf
-  - printf "nameserver ${dns1}\nnameserver ${dns2}\nsearch ${cluster_name}.${cluster_domain}\n" > /etc/resolv.conf
-
-  # Instalar CoreDNS
-  - curl -L -o /tmp/coredns.tgz https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
-  - tar -xzf /tmp/coredns.tgz -C /usr/local/bin
-  - chmod +x /usr/local/bin/coredns
-
-  # Firewall
-  - systemctl enable --now firewalld
   - firewall-cmd --permanent --add-port=53/tcp
   - firewall-cmd --permanent --add-port=53/udp
   - firewall-cmd --reload
 
-  # CoreDNS
+  - curl -L -o /usr/local/bin/coredns \
+      https://github.com/coredns/coredns/releases/download/v1.13.1/coredns_1.13.1_linux_amd64.tgz
+  - chmod +x /usr/local/bin/coredns
+
   - systemctl daemon-reload
   - systemctl enable --now coredns
 
-final_message: "🔥 DNS SNO (sno.okd.local) funcionando correctamente."
+final_message: "Infra OKD DNS funcionando correctamente."
