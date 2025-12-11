@@ -1,5 +1,14 @@
 {
-  "ignition": { "version": "3.2.0" },
+  "ignition": {
+    "version": "3.2.0",
+    "config": {
+      "merge": [
+        {
+          "source": "data:;base64,${base_ign_b64}"
+        }
+      ]
+    }
+  },
 
   "storage": {
     "files": [
@@ -22,11 +31,5 @@
         "contents": "[Unit]\nDescription=Fix resolv.conf before kubelet\nBefore=kubelet.service\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/bash -c 'echo nameserver ${dns1} > /etc/resolv.conf && echo nameserver ${dns2} >> /etc/resolv.conf'\n\n[Install]\nWantedBy=multi-user.target"
       }
     ]
-  },
-
-  "merge": [
-    {
-      "source": "data:;base64,${base_ign_b64}"
-    }
-  ]
+  }
 }
