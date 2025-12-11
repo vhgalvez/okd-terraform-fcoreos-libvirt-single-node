@@ -19,9 +19,14 @@ resource "libvirt_volume" "sno_disk" {
 }
 
 resource "libvirt_ignition" "sno_ign" {
-  name    = "sno.ign"
-  pool    = libvirt_pool.okd.name
-  content = file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
+  name = "sno.ign"
+  pool = libvirt_pool.okd.name
+
+  content = templatefile("${path.module}/file/sno-ignition-wrapper.json", {
+    base_ign = file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
+    dns1     = var.dns1
+    dns2     = var.dns2
+  })
 }
 
 resource "libvirt_domain" "sno" {
@@ -52,10 +57,10 @@ resource "libvirt_domain" "sno" {
   video { type = "vga" }
 
   network_interface {
-    network_name = libvirt_network.okd_net_sno.name
-    mac          = var.sno.mac
-    addresses    = [var.sno.ip]
-    hostname     = var.sno.hostname
+    network_name   = libvirt_network.okd_net_sno.name
+    mac            = var.sno.mac
+    addresses      = [var.sno.ip]
+    hostname       = var.sno.hostname
     wait_for_lease = true
   }
 
