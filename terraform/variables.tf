@@ -52,6 +52,7 @@ variable "infra" {
     mac      = string
     cpus     = number
     memory   = number
+    disk_size_gb = number
   })
 }
 
@@ -67,6 +68,7 @@ variable "sno" {
     mac      = string
     cpus     = number
     memory   = number
+    disk_size_gb = number
   })
 }
 

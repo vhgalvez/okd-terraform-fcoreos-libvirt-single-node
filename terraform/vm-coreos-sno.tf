@@ -16,6 +16,8 @@ resource "libvirt_volume" "sno_disk" {
   pool           = libvirt_pool.okd.name
   base_volume_id = libvirt_volume.coreos_base.id
   format         = "qcow2"
+
+  size = var.sno.disk_size_gb * 1024 * 1024 * 1024
 }
 
 resource "libvirt_ignition" "sno_ign" {

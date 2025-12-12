@@ -7,6 +7,8 @@ resource "libvirt_volume" "infra_disk" {
   pool   = libvirt_pool.okd.name
   source = var.almalinux_image
   format = "qcow2"
+  size   = var.infra.disk_size_gb * 1024 * 1024 * 1024
+
 }
 
 data "template_file" "infra_cloud_init" {
