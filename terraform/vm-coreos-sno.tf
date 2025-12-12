@@ -2,8 +2,11 @@
 # terraform\vm-coreos-sno.tf
 
 ###############################################
-# DISK BASE + OVERLAY
+# SNO – FEDORA COREOS
+# Base image + overlay con tamaño definido
 ###############################################
+
+# Imagen base (NO se toca tamaño)
 resource "libvirt_volume" "coreos_base" {
   name   = "fcos-base.qcow2"
   pool   = libvirt_pool.okd.name
@@ -11,6 +14,7 @@ resource "libvirt_volume" "coreos_base" {
   format = "qcow2"
 }
 
+# Disco real del nodo SNO (AQUÍ va el tamaño)
 resource "libvirt_volume" "sno_disk" {
   name           = "okd-sno.qcow2"
   pool           = libvirt_pool.okd.name
@@ -20,24 +24,28 @@ resource "libvirt_volume" "sno_disk" {
   size = var.sno.disk_size_gb * 1024 * 1024 * 1024
 }
 
+###############################################
+# Ignition SNO (wrapper + merge correcto)
+###############################################
 resource "libvirt_ignition" "sno_ign" {
   name = "sno.ign"
   pool = libvirt_pool.okd.name
 
-  # 1) Ignition original base64
-  # 2) resolv.conf base64 (generado por Terraform)
-  content = templatefile("${path.module}/file/sno-ignition-wrapper.json", {
-    base_ign_b64 = base64encode(
-      file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
-    )
-    resolv_b64 = base64encode(
-      "nameserver ${var.dns1}\nnameserver ${var.dns2}\n"
-    )
-    dns1 = var.dns1
-    dns2 = var.dns2
-  })
+  content = templatefile(
+    "${path.module}/file/sno-ignition-wrapper.json",
+    {
+      base_ign_b64 = base64encode(
+        file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
+      )
+      dns1 = var.dns1
+      dns2 = var.dns2
+    }
+  )
 }
 
+###############################################
+# Dominio SNO
+###############################################
 resource "libvirt_domain" "sno" {
   name      = "okd-sno"
   vcpu      = var.sno.cpus

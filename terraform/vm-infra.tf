@@ -1,16 +1,30 @@
 # terraform/vm-infra.tf
 ###############################################
-# DISCO DEL NODO INFRA (AlmaLinux)
+# INFRA – ALMALINUX
+# Base image + overlay con tamaño definido
 ###############################################
-resource "libvirt_volume" "infra_disk" {
-  name   = "okd-infra.qcow2"
+
+# Imagen base AlmaLinux (NO tamaño aquí)
+resource "libvirt_volume" "infra_base" {
+  name   = "almalinux-base.qcow2"
   pool   = libvirt_pool.okd.name
   source = var.almalinux_image
   format = "qcow2"
-  size   = var.infra.disk_size_gb * 1024 * 1024 * 1024
-
 }
 
+# Disco real del nodo infra (AQUÍ va el tamaño)
+resource "libvirt_volume" "infra_disk" {
+  name           = "okd-infra.qcow2"
+  pool           = libvirt_pool.okd.name
+  base_volume_id = libvirt_volume.infra_base.id
+  format         = "qcow2"
+
+  size = var.infra.disk_size_gb * 1024 * 1024 * 1024
+}
+
+###############################################
+# Cloud-init infra
+###############################################
 data "template_file" "infra_cloud_init" {
   template = file("${path.module}/file/cloud-init-infra.tpl")
 
@@ -35,11 +49,14 @@ resource "libvirt_cloudinit_disk" "infra_init" {
   user_data = data.template_file.infra_cloud_init.rendered
 
   meta_data = yamlencode({
-    "instance-id"    = "okd-infra"
-    "local-hostname" = var.infra.hostname
+    instance-id    = "okd-infra"
+    local-hostname = var.infra.hostname
   })
 }
 
+###############################################
+# Dominio Infra
+###############################################
 resource "libvirt_domain" "infra" {
   name      = "okd-infra"
   vcpu      = var.infra.cpus
@@ -50,6 +67,12 @@ resource "libvirt_domain" "infra" {
 
   arch    = "x86_64"
   machine = "pc"
+
+  disk {
+    volume_id = libvirt_volume.infra_disk.id
+  }
+
+  cloudinit = libvirt_cloudinit_disk.infra_init.id
 
   console {
     type        = "pty"
@@ -65,12 +88,6 @@ resource "libvirt_domain" "infra" {
   }
 
   video { type = "vga" }
-
-  disk {
-    volume_id = libvirt_volume.infra_disk.id
-  }
-
-  cloudinit = libvirt_cloudinit_disk.infra_init.id
 
   network_interface {
     network_name = libvirt_network.okd_net_sno.name
