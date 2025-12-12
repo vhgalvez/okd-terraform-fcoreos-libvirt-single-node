@@ -27,21 +27,26 @@ resource "libvirt_volume" "sno_disk" {
 ###############################################
 # Ignition SNO (wrapper + merge correcto)
 ###############################################
+
+
 resource "libvirt_ignition" "sno_ign" {
   name = "sno.ign"
   pool = libvirt_pool.okd.name
 
-  content = templatefile(
-    "${path.module}/file/sno-ignition-wrapper.json",
-    {
-      base_ign_b64 = base64encode(
-        file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
-      )
-      dns1 = var.dns1
-      dns2 = var.dns2
-    }
-  )
+  # 1) Ignition original base64
+  # 2) resolv.conf base64 (generado por Terraform)
+  content = templatefile("${path.module}/file/sno-ignition-wrapper.json", {
+    base_ign_b64 = base64encode(
+      file("${path.module}/../generated/bootstrap-in-place-for-live-iso.ign")
+    )
+    resolv_b64 = base64encode(
+      "nameserver ${var.dns1}\nnameserver ${var.dns2}\n"
+    )
+    dns1 = var.dns1
+    dns2 = var.dns2
+  })
 }
+
 
 ###############################################
 # Dominio SNO
